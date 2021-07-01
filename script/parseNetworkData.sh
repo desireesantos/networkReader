@@ -7,7 +7,7 @@ mkdir pcapFiles
 mkdir svcFiles
 
 # Filter and save UDP and COAP package from network
-tshark -i 1  -f "dst port 5683 and ip dst 192.168.43.73" -b filesize:1 -a files:2 -w ./pcapFiles/network_data.pcap
+tshark -i 1  -f "dst port 5683 and ip dst <ADD DESTINATION IP>" -b filesize:1 -a files:2 -w ./pcapFiles/network_data.pcap
 
 # Convert .pcap to .csv file
 for filename in ./pcapFiles/*.pcap; do
