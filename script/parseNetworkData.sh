@@ -14,3 +14,5 @@ for filename in ./pcapFiles/*.pcap; do
     tshark -r "$filename"  -T fields -E separator=, -e ip.src -e ip.dst -e _ws.col.Protocol -e coap.payload_length  -e _ws.col.Info >  "./svcFiles/extracted_${index}.svc"
     index=$(( index + 1 ))
 done
+
+# Get file data and populate InfluxDB
