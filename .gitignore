@@ -1,2 +1,7 @@
 # IDE
 .vsCOde
+.DS_Store
+
+# Folders
+./pcapFiles
+./svcFiles
