@@ -39,8 +39,8 @@ for captureFullPackage,captureSummary in zip(captureFullPackage.sniff_continuous
         }
     ]   
         client.write_points(json_body) 
-        print ("(%s - %s) IP %s:%s - %s" % (protocol, transport_layer, src_addr,dst_addr, info))
-        print("Write points: {0}".format(json_body))
+        # print ("(%s - %s) IP %s:%s - %s" % (protocol, transport_layer, src_addr,dst_addr, info))
+        # print("Write points: {0}".format(json_body))
 
     except AttributeError as e:
         pass
