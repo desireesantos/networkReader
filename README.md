@@ -13,7 +13,7 @@ There are two differents interfaces to extract data from network. Choose the bes
 
  #### Python
    Python script using pyshark
-    ```python
+    ```
         python3.8 ./parseNetworkPython.py
     ```
  * Install [pyshark](https://github.com/KimiNewt/pyshark) and follow the installation requirements based on your operation system.
