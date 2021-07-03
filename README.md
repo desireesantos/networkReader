@@ -1,7 +1,6 @@
 # NetworkReader
-Parse packages in real time from network using Tshark[Wireshark]
-
- There are two differents way to extract data from network.
+Parse packages in real time from network using Tshark[Wireshark] and save in influxDB(time series DB)
+There are two differents interfaces to extract data from network. Choose the best way for you!
 
  #### Shell
   Shell script using tshark library
@@ -18,6 +17,6 @@ Parse packages in real time from network using Tshark[Wireshark]
         python3.8 ./parseNetworkPython.py
     ```
  * Install [pyshark](https://github.com/KimiNewt/pyshark) and follow the installation requirements based on your operation system.
- * Use Python 3.8 (pyshark requirement)  
+ * Use at least Python 3.8 (pyshark requirement), but if you're dealing with python version under python3.7 use pyshark-legacy  
 
  * Install [InfluxDB](https://www.influxdata.com/).
