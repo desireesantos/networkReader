@@ -19,15 +19,15 @@ def buildMQTTJson(captureFullPackage, captureSummary):
         transport_layer = captureFullPackage.transport_layer    # protocol transport_layer
         src_addr = captureFullPackage.ip.src                    # source address
         dst_addr = captureFullPackage.ip.dst                    # destination address
-        protocol = captureSummary.protocol                      # protocol 
+        protocol = captureSummary.protocol                      # protocol type
         package_time = captureSummary.time                      # package time
         status = captureSummary.info
     
-        payload_size = captureFullPackage.mqtt.len
-        mid = captureFullPackage.mqtt.msgid
-        method_type = captureFullPackage.mqtt.msgtype
-        uri_path = captureFullPackage.mqtt.topic
-        qos = captureFullPackage.mqtt.sub_qos
+        payload_size = captureFullPackage.mqtt.len              # payload size
+        mid = captureFullPackage.mqtt.msgid                     # Messager identifier
+        method_type = captureFullPackage.mqtt.msgtype           # Message type
+        uri_path = captureFullPackage.mqtt.topic                # topic name
+        qos = captureFullPackage.mqtt.sub_qos                   # quality of Service
 
         json_body = [
             {
@@ -51,13 +51,13 @@ def buildMQTTJson(captureFullPackage, captureSummary):
 
 def buildCoAPJson(captureFullPackage,captureSummary):
             transport_layer = captureFullPackage.transport_layer    # protocol transport_layer
-            payload_size = captureFullPackage.coap.payload_length
+            payload_size = captureFullPackage.coap.payload_length   # payload size
             src_addr = captureFullPackage.ip.src                    # source address
             dst_addr = captureFullPackage.ip.dst                    # destination address
             protocol = captureSummary.protocol                      # protocol 
             package_time = captureSummary.time                      # package time
             
-            package_info = captureSummary.info.split(",")                              # wireshark summary info
+            package_info = captureSummary.info.split(",")           # wireshark summary info
             status = package_info[0].strip()
             mid = package_info[1].strip()
             method_type = package_info[2].strip()
