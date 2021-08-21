@@ -4,6 +4,8 @@ from statistics import mean
 lenght = 0
 counter = 0
 packages = []
+package_lost = []
+package_lost_counter = 0
 small_size = 100
 large_size = 400
 
@@ -45,6 +47,13 @@ def getPackageSize(package):
         return 0
 
 
+def is_packet_lost(captureFullPackage, protocol):
+    if (protocol == 'mqtt' and hasattr(captureFullPackage, 'tcp')):
+        return captureFullPackage.tcp.analysis.flags is not None
+    elif(hasattr(captureFullPackage, 'coap')):
+        return captureFullPackage.coap.retransmitted and captureFullPackage.coap.block.error
+
+
 def calculate_package_size_average(packages):
     return mean(list(map(getPackageSize, packages)))
 
@@ -68,7 +77,11 @@ def identify_package_size(package_size):
 # Identify the best protocol based on network conditions
 for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuously(), captureSummary.sniff_continuously()):
     counter += 1
-    current_package = createPackage(captureSummary.length, captureSummary.time)
+    current_package = createPackage(
+        captureFullPackage, captureSummary.length, captureSummary.time)
+
+    if(is_packet_lost(captureFullPackage, captureSummary.protocol)):
+        package_lost_counter += 1
 
     if(counter < max_size_packages):
         if(hasattr(captureFullPackage, '_ws.malformed')):
@@ -80,14 +93,17 @@ for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuou
         package_size_avr = calculate_package_size_average(packages)
         package_size = identify_package_size(package_size_avr)
         package_total_time = calculate_total_time(packages)
+
         final_size = package_size
         packages = []
         counter = 0
+        package_lost_counter = 0
         packages.append(current_package)
 
         # There is package lost
         if(hasattr(captureFullPackage.tcp, 'analysis')):
-            if((captureFullPackage.tcp.analysis.flags > package_lost_limit) and (package_size == small or package_size == medium)):
+
+            if((len(package_lost_counter) > package_lost_limit) and (package_size == small or package_size == medium)):
                 if(package_size == small and (package_size_avr >= 90 and package_size_avr <= 100)):
                     final_size = medium
 
