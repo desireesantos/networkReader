@@ -65,11 +65,12 @@ def identify_package_size(package_size):
         return large
 
 
+# Identify the best protocol based on network conditions
 for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuously(), captureSummary.sniff_continuously()):
-    counter = counter + 1
+    counter += 1
     current_package = createPackage(captureSummary.length, captureSummary.time)
 
-    if(counter < 10):
+    if(counter < max_size_packages):
         if(hasattr(captureFullPackage, '_ws.malformed')):
             current_package = createPackage(
                 captureFullPackage.tcp.pdu_size, captureSummary.time)
