@@ -5,17 +5,24 @@ lenght = 0
 counter = 0
 packages = []
 package_lost = []
+packages_size = []
 package_lost_counter = 0
 small_size = 100
 large_size = 400
 
-small = 'SMALL'
-medium = 'MEDIUM'
-large = 'LARGE'
+small = 'small'
+medium = 'medium'
+large = 'large'
 
 package_lost_limit = 2
-max_size_packages = 10
+max_size_packages = 6
 best_protocols = {small: 'coap', medium: 'mqtt0', large: 'mqtt2'}
+best_protocols_numbers = {'1': 'COAP', '2': 'MQTT 0', '3': 'MQTT2'}
+
+coap_package_size = {small: 100, large: 460}
+mqtt0_package_size = {small: 100, large: 1000}
+mqtt1_package_size = {small: 100, large: 730}
+mqtt2_package_size = {small: 100, large: 470}
 
 
 # Capture data from network
@@ -29,15 +36,15 @@ captureSummary = pyshark.LiveCapture(
 
 print("listening on %s" % networkInterface)
 
-
 class Package(object):
-    def __init__(self, size, time):
+    def __init__(self, size, time, protocol, qos=0):
         self.size = size
         self.time = time
+        self.protocol = protocol
+        self.qos = qos
 
-
-def createPackage(size, time):
-    return Package(int(size), float(time))
+def createPackage(size, time, protocol, qos):  
+    return Package(int(size), float(time), protocol, int(qos))
 
 
 def getPackageSize(package):
@@ -73,41 +80,95 @@ def identify_package_size(package_size):
     if (package_size > large_size):
         return large
 
+def refactor_identify_package_size(package):
+    result = 0
+    print(package.size)
+
+    #COAP Protocol
+    if(package.protocol == 'CoAP'):
+        if(package.size <= coap_package_size[small]):
+            result = 1
+        elif( package.size > coap_package_size[large] ):
+            result = 2
+        elif( (package.size > coap_package_size[small]) and (package.size <= coap_package_size[large]) ):
+            result = 3
+
+    #MQTT Protocol
+    if(package.protocol == 'MQTT' and package.qos == 0):
+        if( package.size <= mqtt0_package_size[small]):
+            result = 1
+        elif( (package.size > mqtt0_package_size[small]) and (package.size <= mqtt0_package_size[large]) ):
+            result = 2
+        elif( package.size > mqtt0_package_size[large]):
+            result = 3
+
+    elif(package.protocol == 'MQTT' and package.qos == 1):
+        if( package.size <= mqtt1_package_size[small] ):
+            result = 1
+        elif( (package.size > mqtt1_package_size[small]) and (package.size <= mqtt1_package_size[large]) ):
+            result = 2
+        elif( package.size > mqtt1_package_size[large]):
+            result = 3
+
+    elif(package.protocol == 'MQTT' and package.qos == 2):
+        if( package.size <= mqtt2_package_size[small] ):
+            result = 1
+        elif( (package.size > mqtt2_package_size[small]) and (package.size <= mqtt2_package_size[large]) ):
+            result = 2
+        elif( package.size > mqtt2_package_size[large]):
+            result = 3
+    return result        
 
 # Identify the best protocol based on network conditions
 for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuously(), captureSummary.sniff_continuously()):
-    counter += 1
-    current_package = createPackage(
-        captureFullPackage, captureSummary.length, captureSummary.time)
+    QOS = 0 
 
-    if(is_packet_lost(captureFullPackage, captureSummary.protocol)):
-        package_lost_counter += 1
+    # if(is_packet_lost(captureFullPackage, captureSummary.protocol)):
+    #     package_lost_counter += 1
 
     if(counter < max_size_packages):
-        if(hasattr(captureFullPackage, '_ws.malformed')):
-            current_package = createPackage(
-                captureFullPackage.tcp.pdu_size, captureSummary.time)
+            
+        if(captureSummary.protocol == 'MQTT' or captureSummary.protocol == 'CoAP'):
+                            
+            print(dir(captureFullPackage))
+            # if(hasattr(captureFullPackage, 'mqtt')):
+                
+                # print('--- QOS', QOS)                        
 
-        packages.append(current_package)
+            if(hasattr(captureFullPackage, '_ws.malformed')):
+                current_package = createPackage(captureFullPackage.mqtt.len, captureSummary.time, captureSummary.protocol, QOS)
+            else:    
+                current_package = createPackage(captureSummary.length, captureSummary.time, captureSummary.protocol, QOS)    
+            
+            print('>>>> QOS', current_package.qos)
+            current_package_complet = refactor_identify_package_size(current_package)
+            packages.append(current_package)
+            packages_size.append(current_package_complet)
+            counter += 1
     else:
-        package_size_avr = calculate_package_size_average(packages)
-        package_size = identify_package_size(package_size_avr)
-        package_total_time = calculate_total_time(packages)
+        # package_size_avr = calculate_package_size_average(packages)
+        # package_size = identify_package_size(package_size_avr)
+        # package_total_time = calculate_total_time(packages)
 
-        final_size = package_size
+        # final_size = package_size
+        the_best =   round(mean(packages_size))
+        print(list(packages_size))
+        print( best_protocols_numbers[ str(the_best) ] )
         packages = []
+        packages_size = []
         counter = 0
-        package_lost_counter = 0
+        # package_lost_counter = 0
         packages.append(current_package)
+        packages_size.append(current_package_complet)
 
-        # There is package lost
-        if(hasattr(captureFullPackage.tcp, 'analysis')):
+        # # There is package lost
+        # if(hasattr(captureFullPackage.tcp, 'analysis')):
 
-            if((len(package_lost_counter) > package_lost_limit) and (package_size == small or package_size == medium)):
-                if(package_size == small and (package_size_avr >= 90 and package_size_avr <= 100)):
-                    final_size = medium
+        #     if((len(package_lost_counter) > package_lost_limit) and (package_size == small or package_size == medium)):
+        #         if(package_size == small and (package_size_avr >= 90 and package_size_avr <= 100)):
+        #             final_size = medium
 
-                if(package_size == medium and (package_size_avr > 400 and package_size_avr < 500)):
-                    final_size = large
+        #         if(package_size == medium and (package_size_avr > 400 and package_size_avr < 500)):
+        #             final_size = large
 
-        print(best_protocols[final_size])
+        # print(best_protocols[final_size])
