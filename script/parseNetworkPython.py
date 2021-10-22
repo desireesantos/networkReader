@@ -9,6 +9,7 @@ packages_size = []
 package_lost_counter = 0
 small_size = 100
 large_size = 400
+global qos
 
 small = 'small'
 medium = 'medium'
@@ -18,6 +19,11 @@ package_lost_limit = 2
 max_size_packages = 6
 best_protocols = {small: 'coap', medium: 'mqtt0', large: 'mqtt2'}
 best_protocols_numbers = {'1': 'COAP', '2': 'MQTT 0', '3': 'MQTT2'}
+
+mqtt_qos_level = {
+    'At most once delivery (Fire and Forget)': 0,
+    'At least once delivery (Acknowledged deliver)': 1,
+    'Exactly once delivery (Assured Delivery)': 2}
 
 coap_package_size = {small: 100, large: 460}
 mqtt0_package_size = {small: 100, large: 1000}
@@ -37,13 +43,14 @@ captureSummary = pyshark.LiveCapture(
 print("listening on %s" % networkInterface)
 
 class Package(object):
-    def __init__(self, size, time, protocol, qos=0):
+    def __init__(self, size, time, protocol, qos):
         self.size = size
         self.time = time
         self.protocol = protocol
         self.qos = qos
 
 def createPackage(size, time, protocol, qos):  
+    print('qos ', qos, ' | size ', size)
     return Package(int(size), float(time), protocol, int(qos))
 
 
@@ -81,9 +88,7 @@ def identify_package_size(package_size):
         return large
 
 def refactor_identify_package_size(package):
-    result = 0
-    print(package.size)
-
+    result = 1
     #COAP Protocol
     if(package.protocol == 'CoAP'):
         if(package.size <= coap_package_size[small]):
@@ -94,66 +99,85 @@ def refactor_identify_package_size(package):
             result = 3
 
     #MQTT Protocol
-    if(package.protocol == 'MQTT' and package.qos == 0):
+    if((package.protocol == 'MQTT' or package.protocol == 'TCP') and package.qos == 0):
         if( package.size <= mqtt0_package_size[small]):
             result = 1
         elif( (package.size > mqtt0_package_size[small]) and (package.size <= mqtt0_package_size[large]) ):
-            result = 2
+            result = 2.5
         elif( package.size > mqtt0_package_size[large]):
-            result = 3
+            result = 6.3
 
-    elif(package.protocol == 'MQTT' and package.qos == 1):
+    elif((package.protocol == 'MQTT' or package.protocol == 'TCP') and package.qos == 1):
         if( package.size <= mqtt1_package_size[small] ):
             result = 1
         elif( (package.size > mqtt1_package_size[small]) and (package.size <= mqtt1_package_size[large]) ):
-            result = 2
+            result = 2.5
         elif( package.size > mqtt1_package_size[large]):
-            result = 3
+            result = 6.3
 
-    elif(package.protocol == 'MQTT' and package.qos == 2):
+    elif((package.protocol == 'MQTT' or package.protocol == 'TCP') and package.qos == 2):
         if( package.size <= mqtt2_package_size[small] ):
             result = 1
         elif( (package.size > mqtt2_package_size[small]) and (package.size <= mqtt2_package_size[large]) ):
-            result = 2
+            result = 2.5
         elif( package.size > mqtt2_package_size[large]):
-            result = 3
+            result = 6.3
+
+    elif((package.protocol == 'MQTT' or package.protocol == 'TCP') and package.qos == 3):
+        if( package.size <= mqtt1_package_size[small] ):
+            result = 1
+        elif( (package.size > mqtt1_package_size[small]) and (package.size <= mqtt2_package_size[large]) ):
+            result = 2.5   
+        elif( package.size > mqtt2_package_size[large]):
+            result = 6.3
+    print('result - ', result)                  
     return result        
 
 # Identify the best protocol based on network conditions
 for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuously(), captureSummary.sniff_continuously()):
-    QOS = 0 
 
     # if(is_packet_lost(captureFullPackage, captureSummary.protocol)):
     #     package_lost_counter += 1
 
     if(counter < max_size_packages):
-            
-        if(captureSummary.protocol == 'MQTT' or captureSummary.protocol == 'CoAP'):
-                            
-            print(dir(captureFullPackage))
-            # if(hasattr(captureFullPackage, 'mqtt')):
-                
-                # print('--- QOS', QOS)                        
+        qos = 3
+    
+        if(captureSummary.protocol == 'MQTT' or captureSummary.protocol == 'CoAP' or captureSummary.protocol == 'TCP'):
 
+            if(captureSummary.protocol == 'MQTT' or captureSummary.protocol == 'TCP'):
+                qos = 3 if captureSummary.qos == '' else mqtt_qos_level[str(captureSummary.qos)]
+
+            #Has any lost package?
             if(hasattr(captureFullPackage, '_ws.malformed')):
-                current_package = createPackage(captureFullPackage.mqtt.len, captureSummary.time, captureSummary.protocol, QOS)
-            else:    
-                current_package = createPackage(captureSummary.length, captureSummary.time, captureSummary.protocol, QOS)    
+                current_package = createPackage(captureFullPackage.mqtt.len, captureSummary.time, captureSummary.protocol, qos)
+            else:
+                current_package = createPackage(captureSummary.length, captureSummary.time, captureSummary.protocol, qos)    
             
-            print('>>>> QOS', current_package.qos)
             current_package_complet = refactor_identify_package_size(current_package)
             packages.append(current_package)
             packages_size.append(current_package_complet)
             counter += 1
     else:
-        # package_size_avr = calculate_package_size_average(packages)
-        # package_size = identify_package_size(package_size_avr)
+        package_size_avr = calculate_package_size_average(packages)
+
+        package_size = identify_package_size(package_size_avr)
+
         # package_total_time = calculate_total_time(packages)
 
-        # final_size = package_size
+        final_size = package_size
         the_best =   round(mean(packages_size))
         print(list(packages_size))
-        print( best_protocols_numbers[ str(the_best) ] )
+
+        if(the_best > 3):
+            the_best = 3
+
+        if(the_best < 1):
+            the_best = 1
+
+        print('----------')
+        print( best_protocols_numbers[ str(the_best) ], ' - ', the_best )
+        print('----------')
+
         packages = []
         packages_size = []
         counter = 0
