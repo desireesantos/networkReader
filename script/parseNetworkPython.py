@@ -1,5 +1,10 @@
 import pyshark
 from statistics import mean
+from coapthon.client.helperclient import HelperClient
+
+host = "192.168.1.78"
+port = 5683
+path ="middleware"
 
 lenght = 0
 counter = 0
@@ -25,10 +30,13 @@ mqtt_qos_level = {
     'At least once delivery (Acknowledged deliver)': 1,
     'Exactly once delivery (Assured Delivery)': 2}
 
-coap_package_size = {small: 100, large: 460}
+coap_package_size = {small: 100, large: 660}
 mqtt0_package_size = {small: 100, large: 1000}
 mqtt1_package_size = {small: 100, large: 730}
 mqtt2_package_size = {small: 100, large: 470}
+
+# CoAP client
+client = HelperClient(server=(host, port))
 
 
 # Capture data from network
@@ -60,7 +68,6 @@ def getPackageSize(package):
     else:
         return 0
 
-
 def is_packet_lost(captureFullPackage, protocol):
     if (protocol == 'mqtt' and hasattr(captureFullPackage, 'tcp')):
         return captureFullPackage.tcp.analysis.flags is not None
@@ -89,14 +96,15 @@ def identify_package_size(package_size):
 
 def refactor_identify_package_size(package):
     result = 1
+
     #COAP Protocol
     if(package.protocol == 'CoAP'):
         if(package.size <= coap_package_size[small]):
             result = 1
-        elif( package.size > coap_package_size[large] ):
+        elif( package.size > coap_package_size[large]):
             result = 2
         elif( (package.size > coap_package_size[small]) and (package.size <= coap_package_size[large]) ):
-            result = 3
+            result = 6
 
     #MQTT Protocol
     if((package.protocol == 'MQTT' or package.protocol == 'TCP') and package.qos == 0):
@@ -176,6 +184,7 @@ for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuou
 
         print('----------')
         print( best_protocols_numbers[ str(the_best) ], ' - ', the_best )
+        client.put(path, best_protocols_numbers[ str(the_best) ])
         print('----------')
 
         packages = []

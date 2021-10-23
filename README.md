@@ -19,4 +19,6 @@ There are two differents interfaces to extract data from network. Choose the bes
  * Install [pyshark](https://github.com/KimiNewt/pyshark) and follow the installation requirements based on your operation system.
  * Use at least Python 3.8 (pyshark requirement), but if you're dealing with python version under python3.7 use pyshark-legacy  
 
- * Install [InfluxDB](https://www.influxdata.com/).
+ * Install [InfluxDB](https://www.influxdata.co).
+
+ * Install [CoAPthon3](https://github.com/Tanganelli/CoAPthon3).
