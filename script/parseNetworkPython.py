@@ -4,7 +4,7 @@ from coapthon.client.helperclient import HelperClient
 
 host = "192.168.1.78"
 port = 5683
-path ="middleware"
+path ="bestProtocol"
 
 lenght = 0
 counter = 0
@@ -44,7 +44,9 @@ networkInterface = "en0"
 filter_CoAP_MQTT = "(dst port 5683 or src port 5683) or (dst port 1883 or src port 1883)"
 
 captureFullPackage = pyshark.LiveCapture(
-    interface=networkInterface, bpf_filter=filter_CoAP_MQTT)
+    # interface=networkInterface, bpf_filter=filter_CoAP_MQTT)
+    interface=networkInterface, display_filter='mqtt or coap or tcp.continuation_to')
+
 captureSummary = pyshark.LiveCapture(
     interface=networkInterface, bpf_filter=filter_CoAP_MQTT, only_summaries=True)
 
@@ -84,7 +86,6 @@ def calculate_total_time(packages):
     for packaage in packages:
         totalTimePackage.append(packaage.time)
     return sum(totalTimePackage)
-
 
 def identify_package_size(package_size):
     if (package_size <= small_size):
@@ -149,25 +150,22 @@ for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuou
 
     if(counter < max_size_packages):
         qos = 3
+
+        print(captureSummary.protocol)
     
-        if(captureSummary.protocol == 'MQTT' or captureSummary.protocol == 'CoAP' or captureSummary.protocol == 'TCP'):
+        if(captureSummary.protocol in ['MQTT','CoAP','TCP']):
 
             if(captureSummary.protocol == 'MQTT' or captureSummary.protocol == 'TCP'):
                 qos = 3 if captureSummary.qos == '' else mqtt_qos_level[str(captureSummary.qos)]
 
-            #Has any lost package?
-            if(hasattr(captureFullPackage, '_ws.malformed')):
-                current_package = createPackage(captureFullPackage.mqtt.len, captureSummary.time, captureSummary.protocol, qos)
-            else:
-                current_package = createPackage(captureSummary.length, captureSummary.time, captureSummary.protocol, qos)    
-            
+            current_package = createPackage(captureSummary.length, captureSummary.time, captureSummary.protocol, qos)    
             current_package_complet = refactor_identify_package_size(current_package)
+
             packages.append(current_package)
             packages_size.append(current_package_complet)
             counter += 1
     else:
         package_size_avr = calculate_package_size_average(packages)
-
         package_size = identify_package_size(package_size_avr)
 
         # package_total_time = calculate_total_time(packages)
