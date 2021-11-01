@@ -2,7 +2,7 @@ import pyshark
 from statistics import mean
 from coapthon.client.helperclient import HelperClient
 
-host = "192.168.1.78"
+host = "192.168.1.4"
 port = 5683
 path ="bestProtocol"
 
