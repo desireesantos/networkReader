@@ -1,5 +1,6 @@
 import pyshark
 from statistics import mean
+from influxdb import InfluxDBClient
 from coapthon.client.helperclient import HelperClient
 
 host = "192.168.1.4"
@@ -35,8 +36,12 @@ mqtt0_package_size = {small: 100, large: 1000}
 mqtt1_package_size = {small: 100, large: 730}
 mqtt2_package_size = {small: 100, large: 470}
 
+# InfluxDB Client
+influxDBclient = InfluxDBClient(host, port)
+influxDBclient.switch_database('middleware')
+
 # CoAP client
-client = HelperClient(server=(host, port))
+coapClient = HelperClient(server=(host, port))
 
 
 # Capture data from network
@@ -182,7 +187,8 @@ for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuou
 
         print('----------')
         print( best_protocols_numbers[ str(the_best) ], ' - ', the_best )
-        client.put(path, best_protocols_numbers[ str(the_best) ])
+        coapClient.put(path, best_protocols_numbers[ str(the_best) ])
+        influxDBclient.write_points(json_body)
         print('----------')
 
         packages = []
