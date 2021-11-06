@@ -1,11 +1,18 @@
 import pyshark
 from statistics import mean
-from influxdb import InfluxDBClient
+from datetime import datetime
 from coapthon.client.helperclient import HelperClient
 
+from influxdb_client import InfluxDBClient
+from influxdb_client.client.write_api import SYNCHRONOUS
+
 host = "192.168.1.4"
-port = 5683
+port_coap = 5683
 path ="bestProtocol"
+port_influxDB = 8086
+token = "token"
+org = "org"
+bucket = "admin"
 
 lenght = 0
 counter = 0
@@ -37,11 +44,13 @@ mqtt1_package_size = {small: 100, large: 730}
 mqtt2_package_size = {small: 100, large: 470}
 
 # InfluxDB Client
-influxDBclient = InfluxDBClient(host, port)
-influxDBclient.switch_database('middleware')
+influxDBclient = InfluxDBClient(host, port_influxDB)
+influxDBclient.switch_database('middlewareFog')
+write_api = influxDBclient.write_api(write_options=SYNCHRONOUS)
+
 
 # CoAP client
-coapClient = HelperClient(server=(host, port))
+coapClient = HelperClient(server=(host, port_coap))
 
 
 # Capture data from network
@@ -188,7 +197,9 @@ for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuou
         print('----------')
         print( best_protocols_numbers[ str(the_best) ], ' - ', the_best )
         coapClient.put(path, best_protocols_numbers[ str(the_best) ])
-        influxDBclient.write_points(json_body)
+
+        sequence = ["best_protocol={best_protocols_numbers[ str(the_best) ]} package_size={package_size_avr}"]
+        write_api.write(bucket, org, sequence)
         print('----------')
 
         packages = []
