@@ -3,16 +3,11 @@ from statistics import mean
 from datetime import datetime
 from coapthon.client.helperclient import HelperClient
 
-from influxdb_client import InfluxDBClient
-from influxdb_client.client.write_api import SYNCHRONOUS
-
-host = "192.168.1.4"
+host = "192.168.1.37"
 port_coap = 5683
 path ="bestProtocol"
 port_influxDB = 8086
-token = "token"
-org = "org"
-bucket = "admin"
+last_best_protocols = ""
 
 lenght = 0
 counter = 0
@@ -38,15 +33,10 @@ mqtt_qos_level = {
     'At least once delivery (Acknowledged deliver)': 1,
     'Exactly once delivery (Assured Delivery)': 2}
 
-coap_package_size = {small: 100, large: 660}
+coap_package_size = {small: 140, medium:700, large: 900}
 mqtt0_package_size = {small: 100, large: 1000}
 mqtt1_package_size = {small: 100, large: 730}
 mqtt2_package_size = {small: 100, large: 470}
-
-# InfluxDB Client
-influxDBclient = InfluxDBClient(host, port_influxDB)
-influxDBclient.switch_database('middlewareFog')
-write_api = influxDBclient.write_api(write_options=SYNCHRONOUS)
 
 
 # CoAP client
@@ -59,7 +49,7 @@ filter_CoAP_MQTT = "(dst port 5683 or src port 5683) or (dst port 1883 or src po
 
 captureFullPackage = pyshark.LiveCapture(
     # interface=networkInterface, bpf_filter=filter_CoAP_MQTT)
-    interface=networkInterface, display_filter='mqtt or coap or tcp.continuation_to')
+    interface=networkInterface, display_filter='mqtt or coap or udp.dstport == 5683 or tcp.continuation_to')
 
 captureSummary = pyshark.LiveCapture(
     interface=networkInterface, bpf_filter=filter_CoAP_MQTT, only_summaries=True)
@@ -117,8 +107,8 @@ def refactor_identify_package_size(package):
         if(package.size <= coap_package_size[small]):
             result = 1
         elif( package.size > coap_package_size[large]):
-            result = 2
-        elif( (package.size > coap_package_size[small]) and (package.size <= coap_package_size[large]) ):
+            result = 4
+        elif( (package.size > coap_package_size[small]) and (package.size <= coap_package_size[medium]) ):
             result = 6
 
     #MQTT Protocol
@@ -165,7 +155,7 @@ for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuou
     if(counter < max_size_packages):
         qos = 3
 
-        print(captureSummary.protocol)
+        # print(captureSummary.protocol)
     
         if(captureSummary.protocol in ['MQTT','CoAP','TCP']):
 
@@ -185,7 +175,7 @@ for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuou
         # package_total_time = calculate_total_time(packages)
 
         final_size = package_size
-        the_best =   round(mean(packages_size))
+        the_best = round(mean(packages_size))
         print(list(packages_size))
 
         if(the_best > 3):
@@ -196,10 +186,14 @@ for captureFullPackage, captureSummary in zip(captureFullPackage.sniff_continuou
 
         print('----------')
         print( best_protocols_numbers[ str(the_best) ], ' - ', the_best )
-        coapClient.put(path, best_protocols_numbers[ str(the_best) ])
 
-        sequence = ["best_protocol={best_protocols_numbers[ str(the_best) ]} package_size={package_size_avr}"]
-        write_api.write(bucket, org, sequence)
+        # Notify the best protocol to Coap Server
+        if (last_best_protocols != best_protocols_numbers[ str(the_best) ]):
+            coapClient.put(path, best_protocols_numbers[ str(the_best) ])
+            last_best_protocols = best_protocols_numbers[ str(the_best) ]
+
+        # sequence = ["best_protocol={best_protocols_numbers[ str(the_best) ]} package_size={package_size_avr}"]
+        # write_api.write(bucket, org, sequence)
         print('----------')
 
         packages = []
